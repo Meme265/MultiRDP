@@ -19,11 +19,11 @@ jobs:
     - name: Add firewall rule to allow RDP port 3389
       run: netsh advfirewall firewall add rule name="RDP-Allow" dir=in action=allow protocol=TCP localport=3389
 
-    - name: Create RDP User
+    - name: Create RDP User with strong password
       shell: pwsh
       run: |
         $username = 'RDP'
-        $password = '123'
+        $password = 'BC123456'
         $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
         try {
@@ -43,7 +43,7 @@ jobs:
           exit 1
         }
 
-        echo "User: $username; Password: $password"
+        echo "User: $username; Password: BC123456"
 
     - name: Install Tailscale
       run: |
@@ -74,7 +74,7 @@ jobs:
       run: |
         Write-Host "Session ${{ matrix.session }} Tailscale IP: $env:TAILSCALE_IP"
         Write-Host "RDP User: RDP"
-        Write-Host "RDP Password: 123"
+        Write-Host "RDP Password: BC123456"
 
     - name: Keep session alive for 10 minutes
       run: Start-Sleep -Seconds 600
