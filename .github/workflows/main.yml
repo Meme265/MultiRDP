@@ -6,60 +6,24 @@ on:
 jobs:
   rdp-tailscale:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     strategy:
       matrix:
         session: [1,2,3,4,5,6,7,8,9,10]
 
     steps:
-    - name: Enable RDP via registry with retries
-      shell: pwsh
+    - name: Enable RDP and Firewall
       run: |
-        $maxRetries = 3
-        $retryCount = 0
-        while ($retryCount -lt $maxRetries) {
-          try {
-            Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -Value 0 -Force
-            Write-Host 'RDP enabled successfully'
-            break
-          } catch {
-            Write-Warning \"Attempt $retryCount failed: $_\"
-            Start-Sleep -Seconds 3
-            $retryCount++
-          }
-        }
-        if ($retryCount -eq $maxRetries) {
-          throw 'Failed to enable RDP after maximum retries.'
-        }
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
+        netsh advfirewall firewall add rule name="RDP-Allow" dir=in action=allow protocol=TCP localport=3389
 
-    - name: Add firewall rule to allow RDP port 3389
-      run: netsh advfirewall firewall add rule name="RDP-Allow" dir=in action=allow protocol=TCP localport=3389
-
-    - name: Create RDP User with strong password
-      shell: pwsh
+    - name: Create RDP User
       run: |
-        $username = 'RDP'
-        $password = 'BC123456'
+        $password = "TestPass123!"
         $securePass = ConvertTo-SecureString $password -AsPlainText -Force
-
-        try {
-          if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
-            Remove-LocalUser -Name $username -ErrorAction Stop
-          }
-        } catch {
-          Write-Host "No existing user to remove or error removing user: $_"
-        }
-
-        try {
-          New-LocalUser -Name $username -Password $securePass -AccountNeverExpires -ErrorAction Stop
-          Add-LocalGroupMember -Group 'Remote Desktop Users' -Member $username -ErrorAction Stop
-          Write-Host "User creation successful: $username"
-        } catch {
-          Write-Error "Failed creating user: $_"
-          exit 1
-        }
-
-        echo "User: $username; Password: $password"
+        New-LocalUser -Name "rdpsession" -Password $securePass -AccountNeverExpires
+        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "rdpsession"
+        echo "User: rdpsession; Password: $password"
 
     - name: Install Tailscale
       run: |
@@ -89,8 +53,5 @@ jobs:
     - name: Show Tailscale IP and Credentials
       run: |
         Write-Host "Session ${{ matrix.session }} Tailscale IP: $env:TAILSCALE_IP"
-        Write-Host "RDP User: RDP"
-        Write-Host "RDP Password: BC123456"
-
-    - name: Keep session alive for 10 minutes
-      run: Start-Sleep -Seconds 600
+        Write-Host "RDP User: rdpsession"
+        Write-Host "RDP Password: TestPass123!"
