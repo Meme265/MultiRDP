@@ -6,33 +6,24 @@ on:
 jobs:
   rdp-tailscale:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     strategy:
       matrix:
         session: [1,2,3,4,5,6,7,8,9,10]
 
     steps:
-    - name: Enable RDP via registry (Step 1)
+    - name: Enable RDP and Firewall
       run: |
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -Value 0 -Force
-
-    - name: Disable Network Level Authentication (Step 2)
-      run: |
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name 'UserAuthentication' -Value 0 -Force
-
-    - name: Add firewall rule to allow inbound RDP (Step 3)
-      run: netsh advfirewall firewall add rule name="RDP-Allow" dir=in action=allow protocol=TCP localport=3389
-
-    - name: Restart Remote Desktop Service (Step 4)
-      run: Restart-Service -Name TermService -Force
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
+        netsh advfirewall firewall add rule name="RDP-Allow" dir=in action=allow protocol=TCP localport=3389
 
     - name: Create RDP User
       run: |
-        $password = "123"
+        $password = "123!"
         $securePass = ConvertTo-SecureString $password -AsPlainText -Force
-        New-LocalUser -Name "RDP" -Password $securePass -AccountNeverExpires
-        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP"
-        echo "User: RDP; Password: 123"
+        New-LocalUser -Name "rdpsession" -Password $securePass -AccountNeverExpires
+        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "rdpsession"
+        echo "User: rdpsession; Password: $password"
 
     - name: Install Tailscale
       run: |
@@ -62,8 +53,9 @@ jobs:
     - name: Show Tailscale IP and Credentials
       run: |
         Write-Host "Session ${{ matrix.session }} Tailscale IP: $env:TAILSCALE_IP"
-        Write-Host "RDP User: RDP"
-        Write-Host "RDP Password: 123"
+        Write-Host "RDP User: rdpsession"
+        Write-Host "RDP Password: TestPass123!"
 
     - name: Keep session alive for 10 minutes
-      run: Start-Sleep -Seconds 600
+      run: |
+        Start-Sleep -Seconds 600
