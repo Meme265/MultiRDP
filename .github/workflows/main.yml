@@ -1,4 +1,4 @@
-name: Multi RDP via Tailscale (100 sessions)
+name: Multi RDP via Tailscale
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        session: [1..100]
+        session: [1,2,3,4,5,6,7,8,9,10]
 
     steps:
     - name: Enable RDP and Firewall
@@ -23,7 +23,7 @@ jobs:
         $securePass = ConvertTo-SecureString $password -AsPlainText -Force
         New-LocalUser -Name "RDP" -Password $securePass -AccountNeverExpires
         Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP"
-        echo "User: RDP; Password: $password"
+        echo "User: RDP; Password: 123"
 
     - name: Install Tailscale
       run: |
