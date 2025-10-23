@@ -6,15 +6,31 @@ on:
 jobs:
   rdp-tailscale:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       matrix:
         session: [1,2,3,4,5,6,7,8,9,10]
 
     steps:
-    - name: Enable RDP - Allow incoming RDP connections
+    - name: Enable RDP via registry with retries
+      shell: pwsh
       run: |
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -Value 0 -Force
+        $maxRetries = 3
+        $retryCount = 0
+        while ($retryCount -lt $maxRetries) {
+          try {
+            Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -Value 0 -Force
+            Write-Host 'RDP enabled successfully'
+            break
+          } catch {
+            Write-Warning \"Attempt $retryCount failed: $_\"
+            Start-Sleep -Seconds 3
+            $retryCount++
+          }
+        }
+        if ($retryCount -eq $maxRetries) {
+          throw 'Failed to enable RDP after maximum retries.'
+        }
 
     - name: Add firewall rule to allow RDP port 3389
       run: netsh advfirewall firewall add rule name="RDP-Allow" dir=in action=allow protocol=TCP localport=3389
@@ -43,7 +59,7 @@ jobs:
           exit 1
         }
 
-        echo "User: $username; Password: BC123456"
+        echo "User: $username; Password: $password"
 
     - name: Install Tailscale
       run: |
