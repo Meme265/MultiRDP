@@ -1,4 +1,4 @@
-name: Multi RDP via Tailscale
+name: Multi RDP via Tailscale (100 sessions)
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        session: [1,2,3,4,5,6,7,8,9,10]
+        session: [1..100]
 
     steps:
     - name: Enable RDP and Firewall
@@ -19,11 +19,11 @@ jobs:
 
     - name: Create RDP User
       run: |
-        $password = "TestPass123!"
+        $password = "123"
         $securePass = ConvertTo-SecureString $password -AsPlainText -Force
-        New-LocalUser -Name "rdpsession" -Password $securePass -AccountNeverExpires
-        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "rdpsession"
-        echo "User: rdpsession; Password: $password"
+        New-LocalUser -Name "RDP" -Password $securePass -AccountNeverExpires
+        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP"
+        echo "User: RDP; Password: $password"
 
     - name: Install Tailscale
       run: |
@@ -53,8 +53,8 @@ jobs:
     - name: Show Tailscale IP and Credentials
       run: |
         Write-Host "Session ${{ matrix.session }} Tailscale IP: $env:TAILSCALE_IP"
-        Write-Host "RDP User: rdpsession"
-        Write-Host "RDP Password: TestPass123!"
+        Write-Host "RDP User: RDP"
+        Write-Host "RDP Password: 123"
 
     - name: Keep session alive for 10 minutes
       run: |
