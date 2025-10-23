@@ -6,16 +6,25 @@ on:
 jobs:
   rdp-tailscale:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       matrix:
         session: [1,2,3,4,5,6,7,8,9,10]
 
     steps:
-    - name: Enable RDP and Firewall
+    - name: Enable RDP via registry (Step 1)
       run: |
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
-        netsh advfirewall firewall add rule name="RDP-Allow" dir=in action=allow protocol=TCP localport=3389
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -Value 0 -Force
+
+    - name: Disable Network Level Authentication (Step 2)
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name 'UserAuthentication' -Value 0 -Force
+
+    - name: Add firewall rule to allow inbound RDP (Step 3)
+      run: netsh advfirewall firewall add rule name="RDP-Allow" dir=in action=allow protocol=TCP localport=3389
+
+    - name: Restart Remote Desktop Service (Step 4)
+      run: Restart-Service -Name TermService -Force
 
     - name: Create RDP User
       run: |
@@ -57,5 +66,4 @@ jobs:
         Write-Host "RDP Password: 123"
 
     - name: Keep session alive for 10 minutes
-      run: |
-        Start-Sleep -Seconds 600
+      run: Start-Sleep -Seconds 600
