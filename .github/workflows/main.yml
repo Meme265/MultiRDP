@@ -1,0 +1,61 @@
+name: Multi RDP via Tailscale
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rdp-tailscale:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        session: [1,2,3,4,5,6,7,8,9,10]
+
+    steps:
+    - name: Enable RDP and Firewall
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
+        netsh advfirewall firewall add rule name="RDP-Allow" dir=in action=allow protocol=TCP localport=3389
+
+    - name: Create RDP User
+      run: |
+        $password = "TestPass123!"
+        $securePass = ConvertTo-SecureString $password -AsPlainText -Force
+        New-LocalUser -Name "rdpsession" -Password $securePass -AccountNeverExpires
+        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "rdpsession"
+        echo "User: rdpsession; Password: $password"
+
+    - name: Install Tailscale
+      run: |
+        $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
+        $installerPath = "$env:TEMP\tailscale.msi"
+        Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
+        Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
+        Remove-Item $installerPath -Force
+
+    - name: Connect to Tailscale
+      run: |
+        $hostName = "gh-runner-${{ matrix.session }}"
+        & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=$hostName
+        $tsIP = $null
+        $tries = 0
+        while (-not $tsIP -and $tries -lt 20) {
+          $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
+          Start-Sleep -Seconds 5
+          $tries++
+        }
+        if (-not $tsIP) {
+          Write-Error 'Tailscale IP not assigned, exiting'
+          exit 1
+        }
+        echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
+
+    - name: Show Tailscale IP and Credentials
+      run: |
+        Write-Host "Session ${{ matrix.session }} Tailscale IP: $env:TAILSCALE_IP"
+        Write-Host "RDP User: rdpsession"
+        Write-Host "RDP Password: TestPass123!"
+
+    - name: Keep session alive for 10 minutes
+      run: |
+        Start-Sleep -Seconds 600
