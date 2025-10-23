@@ -12,10 +12,12 @@ jobs:
         session: [1,2,3,4,5,6,7,8,9,10]
 
     steps:
-    - name: Enable RDP and Firewall
+    - name: Enable RDP - Allow incoming RDP connections
       run: |
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
-        netsh advfirewall firewall add rule name="RDP-Allow" dir=in action=allow protocol=TCP localport=3389
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -Value 0 -Force
+
+    - name: Add firewall rule to allow RDP port 3389
+      run: netsh advfirewall firewall add rule name="RDP-Allow" dir=in action=allow protocol=TCP localport=3389
 
     - name: Create RDP User
       run: |
@@ -57,5 +59,4 @@ jobs:
         Write-Host "RDP Password: 123"
 
     - name: Keep session alive for 10 minutes
-      run: |
-        Start-Sleep -Seconds 600
+      run: Start-Sleep -Seconds 600
