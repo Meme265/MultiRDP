@@ -20,12 +20,30 @@ jobs:
       run: netsh advfirewall firewall add rule name="RDP-Allow" dir=in action=allow protocol=TCP localport=3389
 
     - name: Create RDP User
+      shell: pwsh
       run: |
-        $password = "123"
+        $username = 'RDP'
+        $password = '123'
         $securePass = ConvertTo-SecureString $password -AsPlainText -Force
-        New-LocalUser -Name "RDP" -Password $securePass -AccountNeverExpires
-        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP"
-        echo "User: RDP; Password: 123"
+
+        try {
+          if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
+            Remove-LocalUser -Name $username -ErrorAction Stop
+          }
+        } catch {
+          Write-Host "No existing user to remove or error removing user: $_"
+        }
+
+        try {
+          New-LocalUser -Name $username -Password $securePass -AccountNeverExpires -ErrorAction Stop
+          Add-LocalGroupMember -Group 'Remote Desktop Users' -Member $username -ErrorAction Stop
+          Write-Host "User creation successful: $username"
+        } catch {
+          Write-Error "Failed creating user: $_"
+          exit 1
+        }
+
+        echo "User: $username; Password: $password"
 
     - name: Install Tailscale
       run: |
